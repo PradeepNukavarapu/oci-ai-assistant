@@ -42,19 +42,25 @@ def list_instances():
         compute = oci.core.ComputeClient(config)
         identity = oci.identity.IdentityClient(config)
 
+        instances = []
+
+        # ✅ Include ROOT compartment
+        root_compartment_id = config["tenancy"]
+
+        res = compute.list_instances(root_compartment_id).data
+        for inst in res:
+            instances.append(f"🔹 {inst.display_name} | {inst.lifecycle_state}")
+
+        # ✅ Also check sub-compartments
         compartments = identity.list_compartments(
             config["tenancy"],
             compartment_id_in_subtree=True
         ).data
 
-        instances = []
-
         for comp in compartments:
             res = compute.list_instances(comp.id).data
             for inst in res:
-                instances.append(
-                    f"🔹 {inst.display_name} | {inst.lifecycle_state}"
-                )
+                instances.append(f"🔹 {inst.display_name} | {inst.lifecycle_state}")
 
         return instances if instances else ["No instances found"]
 
