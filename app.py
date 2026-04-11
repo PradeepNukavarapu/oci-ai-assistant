@@ -67,6 +67,53 @@ def list_instances():
     except Exception as e:
         return [f"Error fetching instances: {str(e)}"]
 
+
+def list_compartments():
+    try:
+        config = get_oci_config()
+        identity = oci.identity.IdentityClient(config)
+
+        compartments = identity.list_compartments(
+            config["tenancy"],
+            compartment_id_in_subtree=True
+        ).data
+
+        return [f"🔹 {c.name}" for c in compartments] or ["No compartments found"]
+    except Exception as e:
+        return [f"Error fetching compartments: {str(e)}"]
+
+
+def list_buckets():
+    try:
+        config = get_oci_config()
+        object_storage = oci.object_storage.ObjectStorageClient(config)
+
+        namespace = object_storage.get_namespace().data
+
+        buckets = object_storage.list_buckets(
+            namespace_name=namespace,
+            compartment_id=config["tenancy"]
+        ).data
+
+        return [f"🔹 {b.name}" for b in buckets] or ["No buckets found"]
+    except Exception as e:
+        return [f"Error fetching buckets: {str(e)}"]
+
+
+def list_databases():
+    try:
+        config = get_oci_config()
+        database = oci.database.DatabaseClient(config)
+
+        dbs = database.list_autonomous_databases(
+            compartment_id=config["tenancy"]
+        ).data
+
+        return [f"🔹 {db.db_name}" for db in dbs] or ["No databases found"]
+    except Exception as e:
+        return [f"Error fetching databases: {str(e)}"]
+
+
 # -----------------------------
 # Chat History
 # -----------------------------
@@ -96,37 +143,51 @@ if user_input:
         st.markdown(user_input)
 
     # -----------------------------
-    # 🔥 INTENT DETECTION
+    # 🔥 MULTI INTENT DETECTION
     # -----------------------------
     if any(word in user_input_lower for word in ["instance", "instances", "vm", "compute"]):
         st.session_state.last_intent = "instances"
 
+    elif any(word in user_input_lower for word in ["compartment", "compartments"]):
+        st.session_state.last_intent = "compartments"
+
+    elif any(word in user_input_lower for word in ["database", "databases", "adb"]):
+        st.session_state.last_intent = "databases"
+
+    elif any(word in user_input_lower for word in ["bucket", "buckets", "object storage"]):
+        st.session_state.last_intent = "buckets"
+
     # -----------------------------
     # 🔥 CONTEXT-AWARE ROUTING
     # -----------------------------
-    if st.session_state.last_intent == "instances":
-        with st.chat_message("assistant"):
+    with st.chat_message("assistant"):
+        if st.session_state.last_intent == "instances":
             with st.spinner("Fetching OCI instances..."):
                 data = list_instances()
+                reply = "\n".join(data) if data else "❌ No VMs found"
 
-                if not data or data == ["No instances found"]:
-                    reply = "❌ No VMs found in your tenancy."
-                else:
-                    reply = f"✅ Found {len(data)} VM(s):\n\n" + "\n".join(data)
+        elif st.session_state.last_intent == "compartments":
+            with st.spinner("Fetching compartments..."):
+                data = list_compartments()
+                reply = "\n".join(data)
 
-                st.markdown(reply)
+        elif st.session_state.last_intent == "databases":
+            with st.spinner("Fetching databases..."):
+                data = list_databases()
+                reply = "\n".join(data)
 
-        st.session_state.messages.append({"role": "assistant", "content": reply})
+        elif st.session_state.last_intent == "buckets":
+            with st.spinner("Fetching buckets..."):
+                data = list_buckets()
+                reply = "\n".join(data)
 
-    else:
-        # Default → LLM
-        with st.chat_message("assistant"):
+        else:
             response = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=st.session_state.messages
             )
-
             reply = response.choices[0].message.content
-            st.markdown(reply)
 
-        st.session_state.messages.append({"role": "assistant", "content": reply})
+        st.markdown(reply)
+
+    st.session_state.messages.append({"role": "assistant", "content": reply})
