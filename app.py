@@ -73,6 +73,9 @@ def list_instances():
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+if "last_intent" not in st.session_state:
+    st.session_state.last_intent = None
+
 # Display history
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
@@ -93,15 +96,23 @@ if user_input:
         st.markdown(user_input)
 
     # -----------------------------
-    # 🔥 ROUTING LOGIC (KEY PART)
+    # 🔥 INTENT DETECTION
     # -----------------------------
-    if any(word in user_input_lower for word in ["instance", "instances", "compute", "vm"]):
-        
+    if any(word in user_input_lower for word in ["instance", "instances", "vm", "compute"]):
+        st.session_state.last_intent = "instances"
+
+    # -----------------------------
+    # 🔥 CONTEXT-AWARE ROUTING
+    # -----------------------------
+    if st.session_state.last_intent == "instances":
         with st.chat_message("assistant"):
             with st.spinner("Fetching OCI instances..."):
                 data = list_instances()
 
-                reply = "\n".join(data)
+                if not data or data == ["No instances found"]:
+                    reply = "❌ No VMs found in your tenancy."
+                else:
+                    reply = f"✅ Found {len(data)} VM(s):\n\n" + "\n".join(data)
 
                 st.markdown(reply)
 
