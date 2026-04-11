@@ -104,15 +104,42 @@ def list_databases():
     try:
         config = get_oci_config()
         database = oci.database.DatabaseClient(config)
+        identity = oci.identity.IdentityClient(config)
+
+        dbs_list = []
+
+        # ✅ Include ROOT
+        root_compartment_id = config["tenancy"]
 
         dbs = database.list_autonomous_databases(
-            compartment_id=config["tenancy"]
+            compartment_id=root_compartment_id
         ).data
 
-        return [f"🔹 {db.db_name}" for db in dbs] or ["No databases found"]
+        for db in dbs:
+            dbs_list.append(
+                f"🔹 {db.db_name} | {db.lifecycle_state}"
+            )
+
+        # ✅ Include sub-compartments
+        compartments = identity.list_compartments(
+            config["tenancy"],
+            compartment_id_in_subtree=True
+        ).data
+
+        for comp in compartments:
+            dbs = database.list_autonomous_databases(
+                compartment_id=comp.id
+            ).data
+
+            for db in dbs:
+                dbs_list.append(
+                    f"🔹 {db.db_name} | {db.lifecycle_state}"
+                )
+
+        return dbs_list if dbs_list else ["No databases found"]
+
     except Exception as e:
         return [f"Error fetching databases: {str(e)}"]
-
 
 # -----------------------------
 # Chat History
@@ -143,45 +170,95 @@ if user_input:
         st.markdown(user_input)
 
     # -----------------------------
-    # 🔥 MULTI INTENT DETECTION
+    # 🔥 SMART INTENT DETECTION
     # -----------------------------
-    if any(word in user_input_lower for word in ["instance", "instances", "vm", "compute"]):
-        st.session_state.last_intent = "instances"
+    intent_map = {
+        "instances": ["instance", "instances", "vm", "compute"],
+        "compartments": ["compartment", "compartments"],
+        "databases": ["database", "databases", "adb"],
+        "buckets": ["bucket", "buckets", "object storage", "storage"],
+    }
 
-    elif any(word in user_input_lower for word in ["compartment", "compartments"]):
-        st.session_state.last_intent = "compartments"
+    detected_intent = None
 
-    elif any(word in user_input_lower for word in ["database", "databases", "adb"]):
-        st.session_state.last_intent = "databases"
+    for intent, keywords in intent_map.items():
+        if any(word in user_input_lower for word in keywords):
+            detected_intent = intent
+            break
 
-    elif any(word in user_input_lower for word in ["bucket", "buckets", "object storage"]):
-        st.session_state.last_intent = "buckets"
+    # Update intent ONLY if detected
+    if detected_intent:
+        st.session_state.last_intent = detected_intent
+
+    # If user asks generic question, let LLM handle
+    if any(word in user_input_lower for word in ["why", "what", "explain", "how"]):
+        st.session_state.last_intent = None
 
     # -----------------------------
-    # 🔥 CONTEXT-AWARE ROUTING
+    # 🔥 ROUTING WITH FALLBACK
     # -----------------------------
     with st.chat_message("assistant"):
-        if st.session_state.last_intent == "instances":
-            with st.spinner("Fetching OCI instances..."):
-                data = list_instances()
-                reply = "\n".join(data) if data else "❌ No VMs found"
+        if st.session_state.last_intent:
 
-        elif st.session_state.last_intent == "compartments":
-            with st.spinner("Fetching compartments..."):
-                data = list_compartments()
-                reply = "\n".join(data)
+            intent = st.session_state.last_intent
 
-        elif st.session_state.last_intent == "databases":
-            with st.spinner("Fetching databases..."):
-                data = list_databases()
-                reply = "\n".join(data)
+            if intent == "instances":
+                with st.spinner("Fetching OCI instances..."):
+                    data = list_instances()
 
-        elif st.session_state.last_intent == "buckets":
-            with st.spinner("Fetching buckets..."):
-                data = list_buckets()
-                reply = "\n".join(data)
+                if data == ["No instances found"]:
+                    reply = (
+                        "❌ I checked your OCI tenancy and couldn’t find any compute instances. "
+                        "It looks like no VMs are currently created."
+                    )
+                else:
+                    reply = (
+                        f"✅ I found {len(data)} VM(s) in your tenancy:\n\n"
+                        + "\n".join(data)
+                    )
+
+            elif intent == "compartments":
+                with st.spinner("Fetching compartments..."):
+                    data = list_compartments()
+                reply = (
+                    "📁 Here are the compartments available in your tenancy:\n\n"
+                    + "\n".join(data)
+                )
+
+            elif intent == "databases":
+                with st.spinner("Fetching databases..."):
+                    data = list_databases()
+
+                if data == ["No databases found"]:
+                    reply = (
+                        "❌ I couldn’t find any Autonomous Databases in your tenancy. If you expected "
+                        "one (even inactive), it might be in a different compartment or not "
+                        "accessible with current permissions."
+                    )
+                else:
+                    reply = f"🗄️ Found {len(data)} database(s):\n\n" + "\n".join(data)
+
+            elif intent == "buckets":
+                with st.spinner("Fetching buckets..."):
+                    data = list_buckets()
+
+                if data == ["No buckets found"]:
+                    reply = (
+                        "❌ No Object Storage buckets found in the root compartment. "
+                        "You might have buckets in other compartments."
+                    )
+                else:
+                    reply = f"🪣 Found {len(data)} bucket(s):\n\n" + "\n".join(data)
+
+            else:
+                response = client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=st.session_state.messages
+                )
+                reply = response.choices[0].message.content
 
         else:
+            # fallback to LLM
             response = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=st.session_state.messages
