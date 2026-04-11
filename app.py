@@ -107,20 +107,27 @@ def list_databases():
         identity = oci.identity.IdentityClient(config)
 
         dbs_list = []
+        seen = set()
 
-        # ✅ Include ROOT
+        def add_dbs(dbs):
+            for db in dbs:
+                if db.id not in seen:
+                    seen.add(db.id)
+                    dbs_list.append(
+                        {
+                            "name": db.db_name,
+                            "state": db.lifecycle_state,
+                            "id": db.id,
+                        }
+                    )
+
         root_compartment_id = config["tenancy"]
 
         dbs = database.list_autonomous_databases(
             compartment_id=root_compartment_id
         ).data
+        add_dbs(dbs)
 
-        for db in dbs:
-            dbs_list.append(
-                f"🔹 {db.db_name} | {db.lifecycle_state}"
-            )
-
-        # ✅ Include sub-compartments
         compartments = identity.list_compartments(
             config["tenancy"],
             compartment_id_in_subtree=True
@@ -130,16 +137,39 @@ def list_databases():
             dbs = database.list_autonomous_databases(
                 compartment_id=comp.id
             ).data
-
-            for db in dbs:
-                dbs_list.append(
-                    f"🔹 {db.db_name} | {db.lifecycle_state}"
-                )
+            add_dbs(dbs)
 
         return dbs_list if dbs_list else ["No databases found"]
 
     except Exception as e:
         return [f"Error fetching databases: {str(e)}"]
+
+
+def start_database(db_id):
+    try:
+        config = get_oci_config()
+        database = oci.database.DatabaseClient(config)
+
+        database.start_autonomous_database(db_id)
+
+        return "✅ Database start initiated successfully."
+
+    except Exception as e:
+        return f"Error starting database: {str(e)}"
+
+
+def stop_database(db_id):
+    try:
+        config = get_oci_config()
+        database = oci.database.DatabaseClient(config)
+
+        database.stop_autonomous_database(db_id)
+
+        return "🛑 Database stop initiated successfully."
+
+    except Exception as e:
+        return f"Error stopping database: {str(e)}"
+
 
 # -----------------------------
 # Chat History
@@ -149,6 +179,9 @@ if "messages" not in st.session_state:
 
 if "last_intent" not in st.session_state:
     st.session_state.last_intent = None
+
+if "last_db" not in st.session_state:
+    st.session_state.last_db = None
 
 # Display history
 for msg in st.session_state.messages:
@@ -194,6 +227,13 @@ if user_input:
     if any(word in user_input_lower for word in ["why", "what", "explain", "how"]):
         st.session_state.last_intent = None
 
+    # Action detection
+    if any(word in user_input_lower for word in ["start", "restart"]):
+        st.session_state.last_intent = "start_db"
+
+    elif any(word in user_input_lower for word in ["stop", "shutdown"]):
+        st.session_state.last_intent = "stop_db"
+
     # -----------------------------
     # 🔥 ROUTING WITH FALLBACK
     # -----------------------------
@@ -235,8 +275,29 @@ if user_input:
                         "one (even inactive), it might be in a different compartment or not "
                         "accessible with current permissions."
                     )
+                elif data and isinstance(data[0], str):
+                    reply = "\n".join(data)
                 else:
-                    reply = f"🗄️ Found {len(data)} database(s):\n\n" + "\n".join(data)
+                    st.session_state.last_db = data[0]
+                    lines = [
+                        f"🔹 {d['name']} | {d['state']}\n   `{d['id']}`"
+                        for d in data
+                    ]
+                    reply = f"🗄️ Found {len(data)} database(s):\n\n" + "\n".join(lines)
+
+            elif intent == "start_db":
+                if st.session_state.last_db:
+                    with st.spinner("Starting database..."):
+                        reply = start_database(st.session_state.last_db["id"])
+                else:
+                    reply = "⚠️ Please select a database first."
+
+            elif intent == "stop_db":
+                if st.session_state.last_db:
+                    with st.spinner("Stopping database..."):
+                        reply = stop_database(st.session_state.last_db["id"])
+                else:
+                    reply = "⚠️ Please select a database first."
 
             elif intent == "buckets":
                 with st.spinner("Fetching buckets..."):
