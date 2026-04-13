@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from groq import Groq
 import os
 import oci
@@ -37,6 +38,9 @@ st.markdown(
     [data-testid="stAppDeployButton"] {display: none !important;}
     button[title="Manage app"] {display: none !important;}
     [aria-label="Manage app"] {display: none !important;}
+    a[title="Manage app"] {display: none !important;}
+    [data-testid="stFloatingToolbar"] {display: none !important;}
+    [data-testid="stAppDeployButtonContainer"] {display: none !important;}
 
     /* Soft app background */
     .stApp {
@@ -118,6 +122,39 @@ st.markdown(
     </style>
     """,
     unsafe_allow_html=True,
+)
+
+# Extra guard for Streamlit-hosted overlays that may ignore CSS selectors.
+components.html(
+    """
+    <script>
+    const hideManageApp = () => {
+      const doc = window.parent?.document || document;
+      const selectors = [
+        '[data-testid="stAppDeployButton"]',
+        '[data-testid="stFloatingToolbar"]',
+        '[data-testid="stAppDeployButtonContainer"]',
+        'button[title="Manage app"]',
+        '[aria-label="Manage app"]',
+        'a[title="Manage app"]',
+      ];
+      selectors.forEach((s) => {
+        doc.querySelectorAll(s).forEach((el) => (el.style.display = 'none'));
+      });
+      doc.querySelectorAll('button, a, div, span').forEach((el) => {
+        if ((el.textContent || '').trim() === 'Manage app') {
+          const container = el.closest('button, a, div');
+          if (container) container.style.display = 'none';
+          el.style.display = 'none';
+        }
+      });
+    };
+    hideManageApp();
+    setInterval(hideManageApp, 700);
+    </script>
+    """,
+    height=0,
+    width=0,
 )
 
 st.markdown('<div class="sticky-shell">', unsafe_allow_html=True)
