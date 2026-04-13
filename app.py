@@ -395,8 +395,12 @@ if user_input:
     if detected_intent:
         st.session_state.last_intent = detected_intent
 
-    # If user asks generic question, let LLM handle
-    if any(word in user_input_lower for word in ["why", "what", "explain", "how"]):
+    # Let LLM handle generic questions only when no OCI keyword intent was found.
+    # This keeps prompts like "what are my VM details?" routed to tenancy APIs.
+    if (
+        not detected_intent
+        and any(word in user_input_lower for word in ["why", "what", "explain", "how"])
+    ):
         st.session_state.last_intent = None
 
     # Action detection
