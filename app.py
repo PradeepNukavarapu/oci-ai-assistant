@@ -2,12 +2,88 @@ import streamlit as st
 from groq import Groq
 import os
 import oci
+from pathlib import Path
 
 # -----------------------------
 # Page Config
 # -----------------------------
 st.set_page_config(page_title="OCI AI Assistant", layout="wide")
-st.title("🤖 OCI AI Assistant")
+
+# -----------------------------
+# Brand + UI Styling
+# -----------------------------
+logo_candidates = [
+    Path(__file__).parent / "assets" / "infolob-logo.png",
+    Path(
+        r"C:\Users\Pradeep\.cursor\projects\e-Onedrive-OneDrive-INFOLOB-Global-Inc-Infolob-AI-use-cases-Sushma-Usecase-3-OCI-AI-Assistant-oci-ai-assistant\assets\c__Users_Pradeep_AppData_Roaming_Cursor_User_workspaceStorage_526de99ca74ad46c3c3ad68fac7aa53c_images_image-1c42517d-030b-4623-8dba-f4e646129f17.png"
+    ),
+]
+
+logo_path = next((p for p in logo_candidates if p.exists()), None)
+
+st.markdown(
+    """
+    <style>
+    /* Hide default Streamlit chrome (top-right share/git menu etc.) */
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    [data-testid="stToolbar"] {display: none !important;}
+    [data-testid="stDecoration"] {display: none !important;}
+    [data-testid="stStatusWidget"] {display: none !important;}
+
+    /* Soft app background */
+    .stApp {
+        background: linear-gradient(140deg, #f8f2f2 0%, #fffafa 35%, #f6f8fc 100%);
+    }
+
+    /* Top hero block */
+    .assistant-hero {
+        background: linear-gradient(120deg, #7d0000 0%, #9c1111 55%, #c33939 100%);
+        border-radius: 14px;
+        padding: 1rem 1.2rem;
+        margin-bottom: 0.8rem;
+        box-shadow: 0 10px 24px rgba(125, 0, 0, 0.22);
+        color: #ffffff;
+    }
+    .assistant-hero h1 {
+        margin: 0;
+        font-size: 1.9rem;
+        line-height: 1.2;
+    }
+    .assistant-hero p {
+        margin: 0.35rem 0 0;
+        color: #ffe8e8;
+        font-size: 0.98rem;
+    }
+    .helper-chip {
+        display: inline-block;
+        margin-top: 0.65rem;
+        padding: 0.25rem 0.55rem;
+        border: 1px solid rgba(255, 255, 255, 0.45);
+        border-radius: 16px;
+        font-size: 0.8rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+top_left, top_right = st.columns([5, 1.2])
+with top_left:
+    st.markdown(
+        """
+        <div class="assistant-hero">
+            <h1>OCI AI Assistant</h1>
+            <p>Ask about compute, compartments, databases and storage with a cleaner chat experience.</p>
+            <span class="helper-chip">INF OLOB Cloud Assistant</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+with top_right:
+    if logo_path:
+        st.image(str(logo_path), use_container_width=True)
 
 # -----------------------------
 # Load API Key
