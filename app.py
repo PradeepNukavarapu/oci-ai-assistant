@@ -15,6 +15,9 @@ st.set_page_config(page_title="OCI AI Assistant", layout="wide")
 logo_candidates = [
     Path(__file__).parent / "assets" / "infolob-logo.png",
     Path(
+        r"C:\Users\Pradeep\.cursor\projects\e-Onedrive-OneDrive-INFOLOB-Global-Inc-Infolob-AI-use-cases-Sushma-Usecase-3-OCI-AI-Assistant-oci-ai-assistant\assets\c__Users_Pradeep_AppData_Roaming_Cursor_User_workspaceStorage_526de99ca74ad46c3c3ad68fac7aa53c_images_image-db67df60-3265-43b5-b453-f7506ac1617c.png"
+    ),
+    Path(
         r"C:\Users\Pradeep\.cursor\projects\e-Onedrive-OneDrive-INFOLOB-Global-Inc-Infolob-AI-use-cases-Sushma-Usecase-3-OCI-AI-Assistant-oci-ai-assistant\assets\c__Users_Pradeep_AppData_Roaming_Cursor_User_workspaceStorage_526de99ca74ad46c3c3ad68fac7aa53c_images_image-1c42517d-030b-4623-8dba-f4e646129f17.png"
     ),
 ]
@@ -31,10 +34,42 @@ st.markdown(
     [data-testid="stToolbar"] {display: none !important;}
     [data-testid="stDecoration"] {display: none !important;}
     [data-testid="stStatusWidget"] {display: none !important;}
+    [data-testid="stAppDeployButton"] {display: none !important;}
+    button[title="Manage app"] {display: none !important;}
+    [aria-label="Manage app"] {display: none !important;}
 
     /* Soft app background */
     .stApp {
-        background: linear-gradient(140deg, #f8f2f2 0%, #fffafa 35%, #f6f8fc 100%);
+        background: linear-gradient(145deg, #f4f7fb 0%, #edf4f7 40%, #f7f2f5 100%);
+    }
+    .main .block-container {
+        max-width: 1250px;
+        padding-top: 0.55rem;
+        padding-bottom: 1rem;
+    }
+
+    /* Sticky top section */
+    .sticky-shell {
+        position: sticky;
+        top: 0;
+        z-index: 999;
+        background: rgba(244, 247, 251, 0.93);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        padding: 0.25rem 0 0.45rem 0;
+        margin-bottom: 0.55rem;
+    }
+
+    .brand-line {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        margin: 0 0 0.42rem 0;
+        color: #7d0000;
+        font-size: 0.86rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
     }
 
     /* Top hero block */
@@ -42,7 +77,6 @@ st.markdown(
         background: linear-gradient(120deg, #7d0000 0%, #9c1111 55%, #c33939 100%);
         border-radius: 14px;
         padding: 1rem 1.2rem;
-        margin-bottom: 0.8rem;
         box-shadow: 0 10px 24px rgba(125, 0, 0, 0.22);
         color: #ffffff;
     }
@@ -64,13 +98,37 @@ st.markdown(
         border-radius: 16px;
         font-size: 0.8rem;
     }
+
+    /* Soothing chat cards */
+    [data-testid="stChatMessage"] {
+        border-radius: 14px;
+        padding: 0.48rem 0.65rem;
+        margin-bottom: 0.25rem;
+        border: 1px solid rgba(130, 155, 176, 0.22);
+        background: #f8fbff;
+    }
+    [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
+        background: #eff6f8;
+        border-color: rgba(112, 158, 156, 0.3);
+    }
+    [data-testid="stChatInput"] {
+        background: rgba(250, 252, 255, 0.96);
+        border-top: 1px solid #d6e1eb;
+    }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-top_left, top_right = st.columns([5, 1.2])
+st.markdown('<div class="sticky-shell">', unsafe_allow_html=True)
+top_left, top_right = st.columns([5.1, 1.1])
 with top_left:
+    st.markdown(
+        """
+        <div class="brand-line">INF OLOB | Cloud & AI Solutions</div>
+        """,
+        unsafe_allow_html=True,
+    )
     st.markdown(
         """
         <div class="assistant-hero">
@@ -84,6 +142,7 @@ with top_left:
 with top_right:
     if logo_path:
         st.image(str(logo_path), use_container_width=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
 # -----------------------------
 # Load API Key
