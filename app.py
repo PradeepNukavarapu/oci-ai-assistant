@@ -4,6 +4,7 @@ from groq import Groq
 import os
 import oci
 from pathlib import Path
+from oci.exceptions import ServiceError
 
 # -----------------------------
 # Page Config
@@ -322,10 +323,18 @@ def start_database(db_id):
         config = get_oci_config()
         database = oci.database.DatabaseClient(config)
 
+        db = database.get_autonomous_database(db_id).data
+        if db.lifecycle_state == "AVAILABLE":
+            return "ℹ️ Database is already running."
+
         database.start_autonomous_database(db_id)
 
         return "✅ Database start initiated successfully."
 
+    except ServiceError as e:
+        if e.status == 409 and e.code == "IncorrectState":
+            return "ℹ️ Database is already in the requested state."
+        return f"Error starting database: {str(e)}"
     except Exception as e:
         return f"Error starting database: {str(e)}"
 
@@ -335,10 +344,18 @@ def stop_database(db_id):
         config = get_oci_config()
         database = oci.database.DatabaseClient(config)
 
+        db = database.get_autonomous_database(db_id).data
+        if db.lifecycle_state == "STOPPED":
+            return "ℹ️ Database is already stopped."
+
         database.stop_autonomous_database(db_id)
 
         return "🛑 Database stop initiated successfully."
 
+    except ServiceError as e:
+        if e.status == 409 and e.code == "IncorrectState":
+            return "ℹ️ Database is already in the requested state."
+        return f"Error stopping database: {str(e)}"
     except Exception as e:
         return f"Error stopping database: {str(e)}"
 
